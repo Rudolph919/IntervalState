@@ -1,0 +1,95 @@
+services:
+  intervalstate_db:
+    image: mysql:8.0
+    container_name: intervalstate-db
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: intervalstate
+      MYSQL_USER: intervalstate
+      MYSQL_PASSWORD: password
+    ports:
+      - "3312:3306"
+    volumes:
+      - intervalstate_db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  intervalstate_app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    container_name: intervalstate-app
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=intervalstate_db
+      - DB_PORT=3306
+      - DB_DATABASE=intervalstate
+      - DB_USERNAME=intervalstate
+      - DB_PASSWORD=password
+      - LOG_CHANNEL=daily
+      - LOG_DEPRECATIONS_CHANNEL=null
+      - LOG_LEVEL=debug
+    depends_on:
+      intervalstate_db:
+        condition: service_healthy
+
+  intervalstate_queue:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    container_name: intervalstate-queue
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=intervalstate_db
+      - DB_DATABASE=intervalstate
+      - DB_USERNAME=intervalstate
+      - DB_PASSWORD=password
+      - QUEUE_CONNECTION=database
+    command: php artisan queue:listen --verbose --tries=3 --timeout=90
+    depends_on:
+      intervalstate_db:
+        condition: service_healthy
+      intervalstate_app:
+        condition: service_started
+    profiles:
+      - with-queue
+
+  intervalstate_web:
+    image: nginx:alpine
+    container_name: intervalstate-web
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./:/var/www/html:ro
+    ports:
+      - "8085:80"
+    depends_on:
+      - intervalstate_app
+
+  intervalstate_node:
+    image: node:20-alpine
+    container_name: intervalstate-node
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+    ports:
+      - "5178:5178"
+    environment:
+      - VITE_DEV_SERVER_HOST=0.0.0.0
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5178"
+    depends_on:
+      - intervalstate_app
+
+volumes:
+  intervalstate_db:
