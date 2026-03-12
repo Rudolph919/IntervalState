@@ -23,6 +23,7 @@ function formatTime(totalSeconds) {
  * @param {'up'|'down'} [options.mode='up']
  * @param {number} [options.durationSeconds=60] - Target duration for count down
  * @param {(elapsed: number) => void} [options.onCountDownComplete] - Called when count down reaches 0
+ * @param {import('vue').Ref<boolean>} [options.isActiveRef] - When false, engine does not tick (for mode switching)
  * @returns {{
  *   elapsedSeconds: import('vue').Ref<number>,
  *   formattedTime: import('vue').ComputedRef<string>,
@@ -36,7 +37,7 @@ function formatTime(totalSeconds) {
  * }}
  */
 export function useTimerEngine(stateRef, options = {}) {
-    const { mode: initialMode = 'up', durationSeconds: initialDuration = 60, onCountDownComplete } = options;
+    const { mode: initialMode = 'up', durationSeconds: initialDuration = 60, onCountDownComplete, isActiveRef } = options;
 
     const elapsedSeconds = ref(0);
     const mode = ref(/** @type {'up'|'down'} */ (initialMode));
@@ -82,7 +83,8 @@ export function useTimerEngine(stateRef, options = {}) {
     watch(
         () => stateRef.value,
         (newState) => {
-            if (newState === 'running') {
+            const active = isActiveRef ? isActiveRef.value : true;
+            if (newState === 'running' && active) {
                 startInterval();
             } else {
                 stopInterval();
@@ -93,6 +95,13 @@ export function useTimerEngine(stateRef, options = {}) {
         },
         { immediate: true }
     );
+
+    if (isActiveRef) {
+        watch(isActiveRef, (active) => {
+            if (!active) stopInterval();
+            else if (stateRef.value === 'running') startInterval();
+        });
+    }
 
     onUnmounted(stopInterval);
 
