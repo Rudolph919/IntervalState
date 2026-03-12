@@ -1,14 +1,15 @@
 import { ref, computed } from 'vue';
 
-/** @typedef {'idle' | 'running' | 'paused' | 'completed'} TimerState */
+/** @typedef {'idle' | 'leadup' | 'running' | 'paused' | 'completed'} TimerState */
 
 /**
  * Deterministic timer state machine.
- * States: idle → running ⇄ paused → completed
+ * States: idle → [leadup] → running ⇄ paused → completed
  *
  * @returns {{
  *   state: import('vue').Ref<TimerState>,
  *   isIdle: import('vue').ComputedRef<boolean>,
+ *   isLeadup: import('vue').ComputedRef<boolean>,
  *   isRunning: import('vue').ComputedRef<boolean>,
  *   isPaused: import('vue').ComputedRef<boolean>,
  *   isCompleted: import('vue').ComputedRef<boolean>,
@@ -16,7 +17,7 @@ import { ref, computed } from 'vue';
  *   canPause: import('vue').ComputedRef<boolean>,
  *   canResume: import('vue').ComputedRef<boolean>,
  *   canReset: import('vue').ComputedRef<boolean>,
- *   start: () => void,
+ *   start: (leadUpSeconds?: number) => void,
  *   pause: () => void,
  *   resume: () => void,
  *   complete: () => void,
@@ -27,6 +28,7 @@ export function useTimerState() {
     const state = ref(/** @type {TimerState} */ ('idle'));
 
     const isIdle = computed(() => state.value === 'idle');
+    const isLeadup = computed(() => state.value === 'leadup');
     const isRunning = computed(() => state.value === 'running');
     const isPaused = computed(() => state.value === 'paused');
     const isCompleted = computed(() => state.value === 'completed');
@@ -34,10 +36,16 @@ export function useTimerState() {
     const canStart = computed(() => state.value === 'idle');
     const canPause = computed(() => state.value === 'running');
     const canResume = computed(() => state.value === 'paused');
-    const canReset = computed(() => state.value === 'paused' || state.value === 'completed');
+    const canReset = computed(() => state.value === 'paused' || state.value === 'completed' || state.value === 'leadup');
 
-    function start() {
-        if (state.value === 'idle') state.value = 'running';
+    function start(leadUpSeconds = 0) {
+        if (state.value === 'idle') {
+            state.value = leadUpSeconds > 0 ? 'leadup' : 'running';
+        }
+    }
+
+    function transitionToRunning() {
+        if (state.value === 'leadup') state.value = 'running';
     }
 
     function pause() {
@@ -53,7 +61,7 @@ export function useTimerState() {
     }
 
     function reset() {
-        if (state.value === 'paused' || state.value === 'completed') {
+        if (state.value === 'paused' || state.value === 'completed' || state.value === 'leadup') {
             state.value = 'idle';
         }
     }
@@ -61,6 +69,7 @@ export function useTimerState() {
     return {
         state,
         isIdle,
+        isLeadup,
         isRunning,
         isPaused,
         isCompleted,
@@ -69,6 +78,7 @@ export function useTimerState() {
         canResume,
         canReset,
         start,
+        transitionToRunning,
         pause,
         resume,
         complete,
