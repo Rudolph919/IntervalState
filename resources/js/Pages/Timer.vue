@@ -4,11 +4,13 @@ import { ref, computed } from 'vue';
 import { useTimerState } from '../composables/useTimerState';
 import { useTimerEngine } from '../composables/useTimerEngine';
 import { useIntervalEngine } from '../composables/useIntervalEngine';
+import { useLeadUpEngine } from '../composables/useLeadUpEngine';
 import { INTERVAL_PRESETS, getPresetById } from '../config/intervalPresets';
 
 const {
     state,
     isIdle,
+    isLeadup,
     isRunning,
     isPaused,
     isCompleted,
@@ -17,6 +19,7 @@ const {
     canResume,
     canReset,
     start,
+    transitionToRunning,
     pause,
     resume,
     complete,
@@ -24,6 +27,7 @@ const {
 } = useTimerState();
 
 const timerMode = ref('simple');
+const leadUpSeconds = ref(10);
 const intervalPresetId = ref('tabata');
 const customWork = ref(30);
 const customRest = ref(15);
@@ -62,9 +66,12 @@ const intervalEngine = useIntervalEngine(
     isIntervalOrCustomMode
 );
 
-const formattedTime = computed(() =>
-    isSimpleMode.value ? timerEngine.formattedTime.value : intervalEngine.formattedTime.value
-);
+const leadUpEngine = useLeadUpEngine(state, leadUpSeconds, transitionToRunning);
+
+const formattedTime = computed(() => {
+    if (isLeadup.value) return leadUpEngine.formattedTime.value;
+    return isSimpleMode.value ? timerEngine.formattedTime.value : intervalEngine.formattedTime.value;
+});
 
 const mode = computed(() => timerEngine.mode);
 const setMode = (m) => timerEngine.setMode(m);
@@ -75,6 +82,20 @@ const roundProgress = computed(() => intervalEngine.roundProgress.value);
 function applyIntervalConfig() {
     intervalEngine.setConfig(intervalConfig.value);
 }
+
+function handleStart() {
+    if (isIntervalOrCustomMode.value) applyIntervalConfig();
+    start(leadUpSeconds.value);
+}
+
+const stateIndicatorClass = computed(() => {
+    if (isIdle.value) return 'bg-slate-800/50';
+    if (isLeadup.value) return 'bg-cyan-900/40';
+    if (isRunning.value) return 'bg-amber-900/40';
+    if (isPaused.value) return 'bg-slate-700/50';
+    if (isCompleted.value) return 'bg-emerald-900/40';
+    return 'bg-slate-800/50';
+});
 </script>
 
 <template>
@@ -186,6 +207,20 @@ function applyIntervalConfig() {
                 </select>
             </div>
 
+            <!-- Lead-up (all modes) -->
+            <div v-if="isIdle" class="flex items-center gap-2 justify-center">
+                <label for="leadup" class="text-slate-400 text-sm">Lead-up (s)</label>
+                <input
+                    id="leadup"
+                    v-model.number="leadUpSeconds"
+                    type="number"
+                    min="0"
+                    max="60"
+                    class="w-16 px-2 py-1 rounded bg-slate-900 border border-slate-600 text-slate-100 text-center font-mono"
+                />
+                <span class="text-slate-500 text-sm">0 = start immediately</span>
+            </div>
+
             <!-- Custom: work/rest/rounds -->
             <div v-if="isIdle && isCustomMode" class="flex items-center gap-3 flex-wrap justify-center">
                 <div class="flex items-center gap-2">
@@ -227,24 +262,31 @@ function applyIntervalConfig() {
             </div>
         </div>
 
-        <div class="text-6xl font-mono tabular-nums tracking-wider mb-2">
-            {{ formattedTime }}
-        </div>
-        <div class="flex flex-col items-center gap-1 mb-8">
-            <p class="text-slate-500 text-sm" :class="{ 'text-amber-400': isRunning, 'text-emerald-400': isCompleted }">
-                {{ state }}
-            </p>
-            <p v-if="isIntervalOrCustomMode && !isIdle" class="text-slate-400 text-sm">
-                {{ phaseLabel }} · Round {{ roundProgress }}
-            </p>
+        <!-- Timer display with state-indicating background -->
+        <div
+            :class="['rounded-2xl px-12 py-10 transition-colors duration-300', stateIndicatorClass]"
+        >
+            <div class="text-[12rem] font-mono tabular-nums tracking-wider mb-2 leading-none">
+                {{ formattedTime }}
+            </div>
+            <div class="flex flex-col items-center gap-2">
+                <template v-if="isIntervalOrCustomMode && isRunning">
+                    <p class="text-slate-300 text-4xl font-medium">
+                        {{ phaseLabel }}
+                    </p>
+                    <p class="text-slate-400 text-3xl">
+                        Round {{ roundProgress }}
+                    </p>
+                </template>
+            </div>
         </div>
 
-        <div class="flex gap-3 flex-wrap justify-center">
+        <div class="flex gap-3 flex-wrap justify-center mt-8">
             <button
                 v-if="canStart"
                 type="button"
                 class="px-6 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-medium transition-colors"
-                @click="() => { if (isIntervalOrCustomMode) applyIntervalConfig(); start(); }"
+                @click="handleStart"
             >
                 Start
             </button>
