@@ -26,8 +26,9 @@ function formatTime(totalSeconds) {
  * @param {number} config.rounds
  * @param {() => void} [onComplete]
  * @param {import('vue').Ref<boolean>} [isActiveRef] - When false, engine does not tick (for mode switching)
+ * @param {() => void} [onPhaseChange] - Called when work↔rest phase changes
  */
-export function useIntervalEngine(stateRef, config, onComplete, isActiveRef) {
+export function useIntervalEngine(stateRef, config, onComplete, isActiveRef, onPhaseChange) {
     const workSeconds = ref(config.workSeconds);
     const restSeconds = ref(config.restSeconds);
     const totalRounds = ref(config.rounds);
@@ -57,10 +58,12 @@ export function useIntervalEngine(stateRef, config, onComplete, isActiveRef) {
             }
             currentPhase.value = 'rest';
             phaseRemaining.value = restSeconds.value;
+            onPhaseChange?.();
         } else {
             currentRound.value += 1;
             currentPhase.value = 'work';
             phaseRemaining.value = workSeconds.value;
+            onPhaseChange?.();
         }
     }
 
