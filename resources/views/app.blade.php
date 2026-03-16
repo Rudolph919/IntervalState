@@ -6,6 +6,8 @@
 
         <title inertia>{{ config('app.name', 'IntervalState') }}</title>
 
+        <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         @inertiaHead
     </head>
