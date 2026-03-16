@@ -30,7 +30,6 @@ This timer prioritises correctness first.
 - Tabata
 - Custom intervals
 - Audio and visual cues
-- Saved workout presets
 
 ---
 
@@ -78,36 +77,16 @@ This timer prioritises correctness first.
 
 ---
 
-## Step-by-Step Build Prompts (Commit-Friendly)
+## Running
 
-1. **Base App** — Laravel + Vue 3 single-page timer interface.  
-   *Commit: `chore: bootstrap timer application`*
-
-2. **Timer State Model** — Deterministic timer state (idle, running, paused, completed).  
-   *Commit: `feat: timer state machine`*
-
-3. **Core Timer Logic** — Count up and count down using a single interval engine.  
-   *Commit: `feat: core timer engine`*
-
-4. **Interval Modes** — Tabata and custom intervals with config-driven logic.  
-   *Commit: `feat: interval mode support`*
-
-5. **Presets** — Save and load workout presets.  
-   *Commit: `feat: workout presets`*
-
-6. **UX Polish** — Audio cues, accessibility, visual state transitions.  
-   *Commit: `feat: timer ux polish`*
+See [README-docker.md](README-docker.md) for how to run the stack with Podman or Docker.
 
 ---
 
 ## Potential Improvements
 
+- **Saved workout presets** — Save and load custom configurations to database
 - Multi-device session sync
 - Workout sharing
 - Mobile-first optimisation
 
----
-
-## Docker / Podman
-
-See [README-docker.md](README-docker.md) for how to run the stack with Podman or Docker.
